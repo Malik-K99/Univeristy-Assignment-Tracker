@@ -1,122 +1,128 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import{useEffect, useState} from "react";
+import AssignmentCard from "./components/AssignmentCard";
+import AssignmentForm from "./components/AssignmentForm";
+import Dashboard from "./components/Dashboard";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [assignments, setAssignments] = useState([]);
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+  useEffect(() => {
+    fetch("http://localhost:3000/api/assignments")
+        .then(response => response.json())
+        .then(data => {
+          console.log("DATA FROM SERVER:", data);
+          setAssignments(data);
+        })
+        .catch(error => {
+          console.error("FETCH ERROR:", error);
+         });
 
-      <div className="ticks"></div>
+  },[]);
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+  async function deleteAssignment(id) {
+    await fetch(
+      `http://localhost:3000/api/assignments/${id}`,
+      {
+        method: "DELETE"
+      }
+    );
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    setAssignments(previous =>
+      previous.filter(assignment => assignment.id !== id)
+    );
+  }
+
+  async function toggleComplete(assignment) {
+    const response = await fetch(
+      `http://localhost:3000/api/assignments/${assignment.id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          completed: !assignment.completed
+        })
+      }
+    );
+
+    const updatedAssignment = await response.json();
+
+    setAssignments(previous =>
+      previous.map(item =>
+        item.id === updatedAssignment.id ? updatedAssignment : item
+      )
+    );
+  }
+
+  return(
+     <div className="app">
+            <header className="app-header">
+                <div className="container">
+                    <h1>University Assignment Tracker</h1>
+                    <p>
+                        Keep track of your university
+                        assignments and deadlines.
+                    </p>
+                </div>
+            </header>
+
+            <main className="container">
+                <Dashboard
+                    assignments={assignments}
+                />
+
+                <div className="content-grid">
+                    <AssignmentForm
+                        onAssignmentAdded={newAssignment => {
+                            setAssignments(previous => [
+                                ...previous,
+                                newAssignment
+                            ]);
+                        }}
+                    />
+
+                    <section className="assignments-section">
+                        <div className="section-heading">
+                            <h2>Your Assignments</h2>
+                            <p>
+                                {assignments.length} assignment
+                                {assignments.length !== 1
+                                    ? "s"
+                                    : ""}
+                            </p>
+                        </div>
+
+                        {assignments.length === 0 ? (
+                            <div className="empty-state">
+                                <h3>No assignments yet</h3>
+                                <p>
+                                    Add your first assignment
+                                    using the form.
+                                </p>
+                            </div>
+                        ) : (
+                            assignments.map(assignment => (
+                                <AssignmentCard
+                                    key={assignment.id}
+                                    assignment={assignment}
+                                    onDelete={deleteAssignment}
+                                    onComplete={
+                                        toggleComplete
+                                    }
+                                />
+                            ))
+                        )}
+                    </section>
+                </div>
+            </main>
+        </div>
+    );
 }
+
+
+
+
+
 
 export default App
